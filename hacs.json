@@ -1,5 +1,6 @@
 {
   "name": "Countdown Card",
   "render_readme": true,
-  "filename": "countdown-card.js"
+  "filename": "countdown-card.js",
+  "content_in_root": true
 }

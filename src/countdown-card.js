@@ -30,6 +30,7 @@ const FormMixin = (Base) => class extends Base {
     this._calY = n.getFullYear();
     this._calM = n.getMonth();
     this._calD = n.getDate();
+    this._calView = 'days';
     this._emojiOpen = false;
   }
 
@@ -43,6 +44,7 @@ const FormMixin = (Base) => class extends Base {
     this._calY = y;
     this._calM = m - 1;
     this._calD = d;
+    this._calView = 'days';
     this._emojiOpen = false;
   }
 
@@ -76,16 +78,77 @@ const FormMixin = (Base) => class extends Base {
     if (this._calD > mx) this._calD = mx;
   }
 
-  _renderFormBody(isEdit, onSave, onDelete, onClose) {
+  _renderDayPicker(today) {
     const y = this._calY, m = this._calM;
     const days = this._dim(y, m);
     const first = this._fdw(y, m);
-    const today = new Date();
     const isT = (d) => today.getFullYear() === y && today.getMonth() === m && today.getDate() === d;
-    const monthName = new Date(y, m).toLocaleDateString(navigator.language, { month: 'long', year: 'numeric' });
+    const monthName = new Date(y, m).toLocaleDateString(navigator.language, { month: 'long' });
     const blanks = Array.from({ length: first }, () => null);
     const nums = Array.from({ length: days }, (_, i) => i + 1);
     const cells = [...blanks, ...nums];
+
+    return html`
+      <div class="calh">
+        <div class="calh-btns">
+          <button class="calm-btn" @click=${() => { this._calView = 'months'; }}>${monthName}</button>
+          <button class="calm-btn" @click=${() => { this._calView = 'years'; }}>${y}</button>
+        </div>
+      </div>
+      <div class="calw">${['S','M','T','W','T','F','S'].map(d => html`<span>${d}</span>`)}</div>
+      <div class="calg">
+        ${cells.map(d => d === null
+          ? html`<span class="calc"></span>`
+          : html`<button class="calc ${d === this._calD ? 'sel' : ''} ${isT(d) ? 'tod' : ''}"
+              @click=${() => { this._calD = d; }}>${d}</button>`
+        )}
+      </div>
+    `;
+  }
+
+  _renderMonthPicker() {
+    const months = Array.from({ length: 12 }, (_, i) =>
+      new Date(2000, i).toLocaleDateString(navigator.language, { month: 'short' })
+    );
+    return html`
+      <div class="calh">
+        <button class="calm-btn" @click=${() => { this._calView = 'years'; }}>${this._calY}</button>
+      </div>
+      <div class="month-grid">
+        ${months.map((name, i) => html`
+          <button class="month-cell ${i === this._calM ? 'sel' : ''}"
+                  @click=${() => { this._calM = i; this._calView = 'days';
+                    const mx = this._dim(this._calY, this._calM);
+                    if (this._calD > mx) this._calD = mx;
+                  }}>${name}</button>
+        `)}
+      </div>
+    `;
+  }
+
+  _renderYearPicker() {
+    const startYear = Math.floor(this._calY / 12) * 12 - 1;
+    const years = Array.from({ length: 16 }, (_, i) => startYear + i);
+    const thisYear = new Date().getFullYear();
+    return html`
+      <div class="calh">
+        <span class="calm">${startYear + 1} – ${startYear + 14}</span>
+        <div class="caln">
+          <button class="calb" @click=${() => { this._calY -= 12; }}>&#8249;</button>
+          <button class="calb" @click=${() => { this._calY += 12; }}>&#8250;</button>
+        </div>
+      </div>
+      <div class="year-grid">
+        ${years.map(y => html`
+          <button class="year-cell ${y === this._calY ? 'sel' : ''} ${y === thisYear ? 'tod' : ''}"
+                  @click=${() => { this._calY = y; this._calView = 'months'; }}>${y}</button>
+        `)}
+      </div>
+    `;
+  }
+
+  _renderFormBody(isEdit, onSave, onDelete, onClose) {
+    const today = new Date();
 
     return html`
       <div class="fh">
@@ -113,21 +176,9 @@ const FormMixin = (Base) => class extends Base {
 
       <div class="fl">Pick a date</div>
       <div class="cal">
-        <div class="calh">
-          <span class="calm">${monthName}</span>
-          <div class="caln">
-            <button class="calb" @click=${this._prevM}>&#8249;</button>
-            <button class="calb" @click=${this._nextM}>&#8250;</button>
-          </div>
-        </div>
-        <div class="calw">${['S','M','T','W','T','F','S'].map(d => html`<span>${d}</span>`)}</div>
-        <div class="calg">
-          ${cells.map(d => d === null
-            ? html`<span class="calc"></span>`
-            : html`<button class="calc ${d === this._calD ? 'sel' : ''} ${isT(d) ? 'tod' : ''}"
-                @click=${() => { this._calD = d; }}>${d}</button>`
-          )}
-        </div>
+        ${this._calView === 'years' ? this._renderYearPicker()
+          : this._calView === 'months' ? this._renderMonthPicker()
+          : this._renderDayPicker(today)}
       </div>
 
       <div class="fl">Pick a color</div>
@@ -226,7 +277,15 @@ const FORM_STYLES = css`
     border-radius: 12px; padding: 12px;
   }
   .calh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .calh-btns { display: flex; gap: 4px; }
   .calm { font-weight: 600; font-size: .95em; text-transform: capitalize; }
+  .calm-btn {
+    background: none; border: none; cursor: pointer; padding: 4px 8px;
+    font-weight: 600; font-size: .95em; text-transform: capitalize;
+    color: var(--a, var(--primary-color, #1976D2)); font-family: inherit;
+    border-radius: 6px;
+  }
+  .calm-btn:hover { background: rgba(0,0,0,.06); }
   .caln { display: flex; gap: 8px; }
   .calb {
     background: none; border: none; font-size: 1.3em; cursor: pointer;
@@ -249,6 +308,29 @@ const FORM_STYLES = css`
   .calc:hover:not(.empty) { background: rgba(0,0,0,.06); }
   .calc.tod { color: var(--a, var(--primary-color, #1976D2)); font-weight: 700; }
   .calc.sel { background: var(--a, var(--primary-color, #1976D2)); color: #fff; font-weight: 700; }
+
+  /* Month picker */
+  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .month-cell {
+    padding: 10px 4px; border: none; background: none; border-radius: 8px;
+    font-size: .85em; cursor: pointer; text-transform: capitalize;
+    color: var(--t1, var(--primary-text-color, #333));
+    font-family: inherit; transition: background .1s;
+  }
+  .month-cell:hover { background: rgba(0,0,0,.06); }
+  .month-cell.sel { background: var(--a, var(--primary-color, #1976D2)); color: #fff; font-weight: 600; }
+
+  /* Year picker */
+  .year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .year-cell {
+    padding: 10px 4px; border: none; background: none; border-radius: 8px;
+    font-size: .85em; cursor: pointer;
+    color: var(--t1, var(--primary-text-color, #333));
+    font-family: inherit; transition: background .1s;
+  }
+  .year-cell:hover { background: rgba(0,0,0,.06); }
+  .year-cell.tod { color: var(--a, var(--primary-color, #1976D2)); font-weight: 700; }
+  .year-cell.sel { background: var(--a, var(--primary-color, #1976D2)); color: #fff; font-weight: 600; }
 
   /* Colors */
   .colr { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -301,7 +383,7 @@ class CountdownCard extends FormMixin(LitElement) {
       _formName: { state: true }, _formIcon: { state: true },
       _formColor: { state: true }, _formType: { state: true },
       _formRecurring: { state: true },
-      _calY: { state: true }, _calM: { state: true }, _calD: { state: true },
+      _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
     };
   }
@@ -534,19 +616,26 @@ class CountdownCard extends FormMixin(LitElement) {
         url_path: urlPath,
       });
 
-      let found = false;
-      for (const view of dashConfig.views || []) {
-        for (let i = 0; i < (view.cards || []).length; i++) {
-          const card = view.cards[i];
-          if (card.type === 'custom:countdown-card') {
-            view.cards[i] = { ...card, events: [...this.config.events] };
-            found = true;
-            break;
+      // Recursively find and update the countdown card in any layout structure
+      const updateCard = (obj) => {
+        if (!obj || typeof obj !== 'object') return false;
+        if (Array.isArray(obj)) {
+          for (let i = 0; i < obj.length; i++) {
+            if (obj[i]?.type === 'custom:countdown-card') {
+              obj[i] = { ...obj[i], events: [...this.config.events] };
+              return true;
+            }
+            if (updateCard(obj[i])) return true;
           }
+          return false;
         }
-        if (found) break;
-      }
-      if (!found) return;
+        for (const key of Object.keys(obj)) {
+          if (updateCard(obj[key])) return true;
+        }
+        return false;
+      };
+
+      if (!updateCard(dashConfig)) return;
 
       await this._hass.callWS({
         type: 'lovelace/config/save',
@@ -609,7 +698,10 @@ class CountdownCard extends FormMixin(LitElement) {
           ${evts.length === 0
             ? html`<div class="empty">No events yet — tap + to add one!</div>`
             : html`
-                ${up.map(e => this._row(e))}
+                ${up.length > 0 ? html`
+                  <div class="divider">Upcoming</div>
+                  ${up.map(e => this._row(e))}
+                ` : ''}
                 ${sp && past.length > 0 ? html`
                   <div class="divider">Past</div>
                   ${past.map(e => this._row(e))}
@@ -642,6 +734,7 @@ class CountdownCard extends FormMixin(LitElement) {
     const isMdi = e.icon && !e.icon.includes(':') && e.icon.length > 2;
     return html`
       <div class="row ${e.isPast ? 'past' : ''} editable ${e.isToday ? 'today' : ''}"
+           style="background: ${c}CC"
            @click=${() => this._openEdit(e)}>
         <div class="accent" style="background:${c}"></div>
         <div class="ico" style="color:${c}">
@@ -700,16 +793,18 @@ class CountdownCard extends FormMixin(LitElement) {
       }
       .det { flex: 1; min-width: 0; }
       .nm {
-        font-weight: 500; font-size: .95em; color: var(--t1);
+        font-weight: 500; font-size: .95em; color: #fff;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        text-shadow: 0 1px 2px rgba(0,0,0,.15);
       }
-      .dt { font-size: .78em; color: var(--t2); margin-top: 2px; }
+      .dt { font-size: .78em; color: rgba(255,255,255,.8); margin-top: 2px; }
       .cd { text-align: right; flex-shrink: 0; min-width: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; padding-right: 2px; }
       .cd:active { opacity: .7; }
-      .cv { font-size: 1.8em; font-weight: 700; line-height: 1; }
+      .cv { font-size: 1.8em; font-weight: 700; line-height: 1; color: #fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.15); }
       .cv.detail { font-size: 1.1em; letter-spacing: .5px; }
-      .cl { font-size: .7em; color: var(--t2); text-transform: lowercase; margin-top: 2px; }
-      .row.past { opacity: .5; }
+      .cl { font-size: .7em; color: rgba(255,255,255,.8); text-transform: lowercase; margin-top: 2px; }
+      .row.past { opacity: 1; }
+      .ico { color: rgba(255,255,255,.9) !important; }
       .empty { padding: 32px; text-align: center; color: var(--t2); font-style: italic; }
 
       /* Add button */
@@ -760,7 +855,7 @@ class CountdownCardEditor extends FormMixin(LitElement) {
       _formName: { state: true }, _formIcon: { state: true },
       _formColor: { state: true }, _formType: { state: true },
       _formRecurring: { state: true },
-      _calY: { state: true }, _calM: { state: true }, _calD: { state: true },
+      _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
     };
   }

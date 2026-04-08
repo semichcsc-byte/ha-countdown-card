@@ -1,9 +1,10 @@
 # Countdown Card for Home Assistant
 
 [![HACS Badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A clean, native-looking countdown card for Home Assistant. Track birthdays, holidays, vacations, and any important dates right on your dashboard.
+
+![Countdown Card Screenshot](https://raw.githubusercontent.com/semichcsc-byte/ha-countdown-card/main/screenshot.png)
 
 ## Features
 
@@ -28,10 +29,12 @@ A clean, native-looking countdown card for Home Assistant. Track birthdays, holi
 3. Add this repository URL, category: **Dashboard**
 4. Search for **Countdown Card** and install it
 5. Restart Home Assistant
+6. Go to any dashboard → **Edit** (pencil icon) → **+ Add Card** → search for **Countdown Card**
+7. Done! Use the **+ New Countdown** button to start adding events
 
 ### Manual
 
-1. Download `countdown-card.js` from the [latest release](../../releases/latest)
+1. Download `countdown-card.js` from the [latest release](https://github.com/semichcsc-byte/ha-countdown-card/releases/latest)
 2. Copy it to your `config/www/` folder
 3. Go to **Settings → Dashboards → Resources → Add Resource**
    - URL: `/local/countdown-card.js`
@@ -111,7 +114,7 @@ When viewing in "years" and the event is less than 1 year away, it automatically
 ## Development
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ha-countdown-card.git
+git clone https://github.com/semichcsc-byte/ha-countdown-card.git
 cd ha-countdown-card
 npm install
 npm run build       # build once
@@ -119,6 +122,10 @@ npm run watch       # rebuild on changes
 ```
 
 The compiled card will be at `dist/countdown-card.js`.
+
+## Credits
+
+This entire card was built with the help of **GitHub Copilot (Claude)** — from the first line of code to the final push. The human provided the ideas, opinions, and vigorous button-clicking. The AI did the rest. No developers were harmed in the making of this card, mostly because there weren't any. :robot:
 
 ## License
 
