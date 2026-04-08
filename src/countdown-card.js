@@ -227,6 +227,8 @@ const FormMixin = (Base) => class extends Base {
         `)}
       </div>
 
+      <button class="savbtn" @click=${onSave} ?disabled=${!this._formName.trim()}>Save</button>
+
       ${isEdit ? html`
         <button class="delbtn" @click=${onDelete}>Delete this countdown</button>
       ` : nothing}
@@ -410,6 +412,16 @@ const FORM_STYLES = css`
   }
   .time-clear:hover { background: rgba(0,0,0,.06); }
 
+  /* Save (bottom) */
+  .savbtn {
+    display: block; width: 100%; margin-top: 20px; padding: 12px;
+    border: none; background: var(--a, var(--primary-color, #1976D2)); color: #fff;
+    border-radius: 12px; font-size: .9em; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  .savbtn:hover { opacity: .88; }
+  .savbtn:disabled { opacity: .3; cursor: default; }
+
   /* Delete */
   .delbtn {
     display: block; width: 100%; margin-top: 20px; padding: 12px;
@@ -510,25 +522,35 @@ class CountdownCard extends FormMixin(LitElement) {
       let target = new Date(orig);
       const rec = evt.recurring === true ? 'yearly' : (evt.recurring || false);
 
+      const cmpTime = hasTime ? now.getTime() : t0;
+
       if (rec === 'yearly') {
-        target = new Date(today.getFullYear(), orig.getMonth(), orig.getDate());
-        if (target.getTime() < t0)
-          target = new Date(today.getFullYear() + 1, orig.getMonth(), orig.getDate());
+        target = new Date(today.getFullYear(), orig.getMonth(), orig.getDate(), origH, origMi);
+        if (target.getTime() < cmpTime)
+          target = new Date(today.getFullYear() + 1, orig.getMonth(), orig.getDate(), origH, origMi);
       } else if (rec === 'monthly') {
-        target = new Date(today.getFullYear(), today.getMonth(), orig.getDate());
-        if (target.getTime() < t0)
-          target = new Date(today.getFullYear(), today.getMonth() + 1, orig.getDate());
+        target = new Date(today.getFullYear(), today.getMonth(), orig.getDate(), origH, origMi);
+        if (target.getTime() < cmpTime)
+          target = new Date(today.getFullYear(), today.getMonth() + 1, orig.getDate(), origH, origMi);
       } else if (rec === 'weekly') {
         const origDay = orig.getDay();
         target = new Date(today);
         const todayDay = today.getDay();
         let daysUntil = origDay - todayDay;
         if (daysUntil < 0) daysUntil += 7;
-        if (daysUntil === 0 && t0 > orig.getTime()) daysUntil = 0; // today is fine
-        target.setDate(today.getDate() + daysUntil);
-        target.setHours(0, 0, 0, 0);      } else if (rec === 'daily') {
-        target = new Date(today);
-        target.setHours(0, 0, 0, 0);      }
+        if (daysUntil === 0) {
+          target.setDate(today.getDate());
+          target.setHours(origH, origMi, 0, 0);
+          if (target.getTime() < cmpTime) { daysUntil = 7; target.setDate(today.getDate() + daysUntil); }
+        } else {
+          target.setDate(today.getDate() + daysUntil);
+        }
+        target.setHours(origH, origMi, 0, 0);
+      } else if (rec === 'daily') {
+        target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), origH, origMi);
+        if (target.getTime() < cmpTime)
+          target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, origH, origMi);
+      }
 
       let ye = today.getFullYear() - orig.getFullYear();
       const md = today.getMonth() - orig.getMonth();
@@ -581,6 +603,11 @@ class CountdownCard extends FormMixin(LitElement) {
     let h = 0;
     for (let i = 0; i < e.name.length; i++) h = e.name.charCodeAt(i) + ((h << 5) - h);
     return `hsl(${((h % 360) + 360) % 360}, 55%, 45%)`;
+  }
+
+  // ── Translation helper ──────────────────────────────────────────
+  _t(key, fallback) {
+    return (this.config.strings && this.config.strings[key]) || fallback;
   }
 
   // ── Format cycling ──────────────────────────────────────────────
@@ -677,27 +704,27 @@ class CountdownCard extends FormMixin(LitElement) {
   }
 
   _lbl(e) {
-    if (e.isToday) return 'Today!';
-    if (e.hasTime && e.absDiff < 1 && !e.isPast) return 'left';
+    if (e.isToday) return this._t('today', 'Today!');
+    if (e.hasTime && e.absDiff < 1 && !e.isPast) return this._t('left', 'left');
     const fmt = this._getFormat(e);
-    const suffix = e.isPast ? 'ago' : 'left';
+    const suffix = e.isPast ? this._t('ago', 'ago') : this._t('left', 'left');
     switch (fmt) {
-      case 'weeks': return `weeks ${suffix}`;
+      case 'weeks': return `${this._t('weeks', 'weeks')} ${suffix}`;
       case 'months': { const v = this._calcMonths(
         e.isPast ? e.targetDate : new Date(), e.isPast ? new Date() : e.targetDate
-      ); return v === 1 ? `month ${suffix}` : `months ${suffix}`; }
+      ); return v === 1 ? `${this._t('month', 'month')} ${suffix}` : `${this._t('months', 'months')} ${suffix}`; }
       case 'years': {
         const yv = this._calcYears(
           e.isPast ? e.targetDate : new Date(), e.isPast ? new Date() : e.targetDate
         );
-        if (yv > 0) return yv === 1 ? `year ${suffix}` : `years ${suffix}`;
+        if (yv > 0) return yv === 1 ? `${this._t('year', 'year')} ${suffix}` : `${this._t('years', 'years')} ${suffix}`;
         const mv = this._calcMonths(
           e.isPast ? e.targetDate : new Date(), e.isPast ? new Date() : e.targetDate
         );
-        return mv === 1 ? `month ${suffix}` : `months ${suffix}`;
+        return mv === 1 ? `${this._t('month', 'month')} ${suffix}` : `${this._t('months', 'months')} ${suffix}`;
       }
       case 'detail': return suffix;
-      default: { const rd = Math.round(e.absDiff); return rd === 1 ? `day ${suffix}` : `days ${suffix}`; }
+      default: { const rd = Math.round(e.absDiff); return rd === 1 ? `${this._t('day', 'day')} ${suffix}` : `${this._t('days', 'days')} ${suffix}`; }
     }
   }
 
@@ -800,16 +827,16 @@ class CountdownCard extends FormMixin(LitElement) {
             ? html`<div class="empty">No events yet — tap + to add one!</div>`
             : html`
                 ${up.length > 0 ? html`
-                  ${this.config.show_labels !== false ? html`<div class="divider">Upcoming</div>` : ''}
+                  ${this.config.show_labels !== false ? html`<div class="divider">${this._t('upcoming', 'Upcoming')}</div>` : ''}
                   ${up.map(e => this._row(e))}
                 ` : ''}
                 ${sp && past.length > 0 ? html`
-                  ${this.config.show_labels !== false ? html`<div class="divider">Past</div>` : ''}
+                  ${this.config.show_labels !== false ? html`<div class="divider">${this._t('past', 'Past')}</div>` : ''}
                   ${past.map(e => this._row(e))}
                 ` : ''}
               `}
         </div>
-        ${this.config.show_add !== false ? html`
+        ${this.config.show_add !== false && this.config.editable !== false ? html`
         <div class="add-wrap">
           <button class="add-btn" @click=${this._openNew}>
             <span class="add-plus">＋</span> New Countdown
@@ -839,9 +866,9 @@ class CountdownCard extends FormMixin(LitElement) {
     const rowStyle = rs === 'minimal' ? '' : rs === 'soft' ? `background:${c}33` : `background:${c}`;
     const textWhite = rs === 'solid';
     return html`
-      <div class="row ${e.isPast ? 'past' : ''} editable ${e.isToday ? 'today' : ''} rs-${rs}"
+      <div class="row ${e.isPast ? 'past' : ''} ${this.config.editable !== false ? 'editable' : ''} ${e.isToday ? 'today' : ''} rs-${rs}"
            style="${rowStyle}"
-           @click=${() => this._openEdit(e)}>
+           @click=${() => { if (this.config.editable !== false) this._openEdit(e); }}>
         ${rs === 'minimal' ? html`<div class="accent" style="background:${c}"></div>` : ''}
         <div class="ico" style="color:${textWhite ? 'rgba(255,255,255,.9)' : c}">
           ${isMdi ? html`<ha-icon .icon=${`mdi:${e.icon}`}></ha-icon>` : html`<ha-icon icon="mdi:calendar"></ha-icon>`}
@@ -850,7 +877,7 @@ class CountdownCard extends FormMixin(LitElement) {
           <div class="nm">${e.name}</div>
           <div class="dt">${this._fmt(e.originalDate)}</div>
           ${e.recurring && e.yearsElapsed > 0 ? html`
-            <div class="dt since">${e.yearsElapsed} ${e.yearsElapsed === 1 ? 'year' : 'years'} ago</div>
+            <div class="dt since">${e.yearsElapsed} ${e.yearsElapsed === 1 ? this._t('year', 'year') : this._t('years', 'years')} ${this._t('ago', 'ago')}</div>
           ` : ''}
         </div>
         <div class="cd ${e.isToday ? 'cd-today' : ''}"
@@ -860,7 +887,7 @@ class CountdownCard extends FormMixin(LitElement) {
             <div class="today-ico" style="color:${textWhite ? 'rgba(255,255,255,.9)' : c}">
               ${isMdi ? html`<ha-icon .icon=${`mdi:${e.icon}`}></ha-icon>` : html`<ha-icon icon="mdi:calendar"></ha-icon>`}
             </div>
-            <div class="cl" style="${textWhite ? '' : `color:var(--t2)`}">today</div>
+            <div class="cl" style="${textWhite ? '' : `color:var(--t2)`}">${this._t('today_label', 'today')}</div>
           ` : html`
             <div class="cv ${this._getFormat(e) === 'detail' ? 'detail' : ''}" style="${!textWhite ? `color:${c}` : ''}">${this._val(e)}</div>
             <div class="cl">${this._lbl(e)}</div>
@@ -928,7 +955,7 @@ class CountdownCard extends FormMixin(LitElement) {
       .cd-today { cursor: default; }
       .cv { font-size: 1.8em; font-weight: 700; line-height: 1; }
       .cv.detail { font-size: 1.1em; letter-spacing: .5px; }
-      .cl { font-size: .7em; color: var(--t2); text-transform: lowercase; margin-top: 2px; }
+      .cl { font-size: .7em; color: var(--t2); margin-top: 2px; }
       .row.past { opacity: 1; }
       .empty { padding: 32px; text-align: center; color: var(--t2); font-style: italic; }
 
