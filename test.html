@@ -22,6 +22,8 @@
 </head>
 <body>
   <div class="wrap">
+    <countdown-timer-card id="timer-card"></countdown-timer-card>
+    <div style="height:24px"></div>
     <countdown-card id="card"></countdown-card>
   </div>
 
@@ -70,6 +72,8 @@
       document.getElementById('card').setConfig({
         title: 'Countdowns',
         show_past: true,
+        show_progress: true,
+        progress_mode: 'fill',
         // show_labels: false,
         // show_add: false,
         date_format: 'DD/MM/YYYY',
@@ -84,6 +88,20 @@
           { name: 'Got our Dog', date: '2022-06-10', icon: 'paw', color: '#4E342E' },
           { name: 'Bought the House', date: '2019-11-20', icon: 'home', color: '#00838F' },
         ],
+      });
+    });
+
+    // Always seed demo timers for test page
+    localStorage.setItem('countdown-timer-card-timers', JSON.stringify([
+      { name: 'Laundry', duration: 2700, remaining: 2700, color: '#1565C0', status: 'stopped', startedAt: null, pausedRemaining: null },
+      { name: 'Pizza in oven', duration: 900, remaining: 900, color: '#C62828', status: 'stopped', startedAt: null, pausedRemaining: null },
+      { name: 'Quick break', duration: 300, remaining: 300, color: '#2E7D32', status: 'stopped', startedAt: null, pausedRemaining: null },
+      { name: 'Pomodoro', duration: 1500, remaining: 1500, color: '#EF6C00', status: 'stopped', startedAt: null, pausedRemaining: null },
+    ]));
+
+    import('./dist/countdown-timer-card.js').then(() => {
+      document.getElementById('timer-card').setConfig({
+        title: 'Timers',
       });
     });
   </script>

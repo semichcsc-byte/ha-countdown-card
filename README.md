@@ -1,10 +1,12 @@
-# Countdown Card for Home Assistant
+# Countdown Card & Timer for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-A clean, native-looking countdown card for Home Assistant. Track birthdays, holidays, vacations, and any important dates right on your dashboard.
+A clean, native-looking countdown card for Home Assistant. Track birthdays, holidays, vacations, and any important dates right on your dashboard. Now also includes a **Timer Card** for quick countdown timers and **Waze Travel Time** integration.
 
-![screenshot](screenshot.png)
+![Countdown Card](screenshot-countdown.png)
+
+![Timer Card](screenshot-timer.png)
 
 ## Inspiration
 
@@ -28,9 +30,14 @@ This is **not** a direct copy. The codebase is written entirely from scratch for
 - **"X years ago" display** — recurring events show years elapsed (e.g. "36 years ago" for birthdays)
 - **Time support** — countdown to a specific hour (e.g. "7h 25m left")
 - **Row styles** — solid (vibrant), soft (subtle tint), or minimal (accent bar only)
+- **Progress bar** — optional visual progress indicator on each row (drain or fill mode)
+- **Progress bar opacity** — adjustable opacity (5%–60%) for the progress bar
+- **Show/hide date** — toggle the date line under event names
 - **Customizable** — hide labels, hide add button, custom date format
 - **Format persistence** — your chosen display format is remembered across reloads
-- **Lightweight** — single JS file, ~50KB, no external dependencies
+- **Timer card included** — set quick countdown timers (30s to 2h or custom) with play/pause/reset
+- **Waze travel time** — show live travel time, distance, and route on any event row
+- **Lightweight** — single JS file, no external dependencies
 
 ## Installation
 
@@ -66,10 +73,14 @@ Tap any existing event to edit or delete it.
 type: custom:countdown-card
 title: My Events
 show_past: true
-show_labels: true       # set false to hide Upcoming/Past headers
-show_add: true          # set false to hide the + New Countdown button
-date_format: DD/MM/YYYY # custom date format (leave empty for auto)
-row_style: solid        # solid | soft | minimal
+show_labels: true          # set false to hide Upcoming/Past headers
+show_add: true             # set false to hide the + New Countdown button
+show_date: true            # set false to hide the date line under event names
+show_progress: false       # set true to show progress bar on upcoming events
+progress_mode: drain       # drain (shrinks) or fill (grows as event approaches)
+progress_opacity: 0.15     # progress bar opacity (0.05 to 0.6)
+date_format: DD/MM/YYYY    # custom date format (leave empty for auto)
+row_style: solid           # solid | soft | minimal
 events:
   - name: Summer Vacation
     date: "2026-08-01"
@@ -101,6 +112,10 @@ events:
 | `show_add` | boolean | `true` | Show the "+ New Countdown" button |
 | `date_format` | string | auto | Custom date format (see below) |
 | `row_style` | string | `solid` | Row background style: `solid`, `soft`, or `minimal` |
+| `show_date` | boolean | `true` | Show the date line under event names |
+| `show_progress` | boolean | `false` | Show a progress bar on upcoming event rows |
+| `progress_mode` | string | `drain` | Progress bar mode: `drain` (shrinks) or `fill` (grows) |
+| `progress_opacity` | number | `0.15` | Progress bar opacity (`0.05` to `0.6`) |
 | `editable` | boolean | `true` | Allow adding/editing events from the card. Set `false` for read-only |
 | `strings` | object | — | Override labels for localization (see below) |
 | `events` | list | required | List of events |
@@ -114,6 +129,7 @@ events:
 | `icon` | string | `calendar` | Material Design icon name (without `mdi:` prefix) |
 | `color` | string | auto | Color as hex (e.g. `#C62828`) |
 | `recurring` | string | `false` | `daily`, `weekly`, `monthly`, or `yearly` |
+| `waze_entity` | string | — | Waze Travel Time sensor entity (e.g. `sensor.waze_home_to_work`) |
 
 ### Date format tokens
 
@@ -132,6 +148,26 @@ events:
 Examples: `DD/MM/YYYY` → 07/04/2026, `D MMM YYYY` → 7 Apr 2026, `YYYY-MM-DD` → 2026-04-07
 
 Leave empty for automatic formatting based on browser locale.
+
+### Waze Travel Time
+
+You can link any event to a Waze Travel Time sensor to show live travel duration, distance, and route on the row:
+
+```yaml
+- name: Go to Work
+  date: "2026-04-10 09:00"
+  icon: briefcase
+  color: "#1565C0"
+  recurring: daily
+  waze_entity: sensor.waze_home_to_microsoft
+```
+
+The row will display something like: **24 min · 26.6 km** via A16; IC19
+
+- Requires the [Waze Travel Time](https://www.home-assistant.io/integrations/waze_travel_time/) integration
+- The entity picker is available in the form editor (tap + or edit an event)
+- Travel time updates automatically when HA updates the sensor
+- Works with any row style (solid, soft, minimal)
 
 ### Time support
 
@@ -203,6 +239,38 @@ Tap the number on the right side of any event to cycle through display formats:
 | 4 | Years | 2 years left |
 | 5 | Detail | 2y 3m 14d left |
 
+---
+
+## Timer Card
+
+The package also includes a **Countdown Timer Card** — a quick-start timer you can use alongside or instead of the countdown card. No extra installation needed.
+
+### Usage
+
+```yaml
+type: custom:countdown-timer-card
+title: Timers
+```
+
+That's it! Add timers directly from the card UI:
+
+- **Tap "+ New Timer"** to create a timer
+- **Choose a duration** — manual input (h:m:s) or quick presets (30s, 1m, 2m, 5m, 10m, 15m, 30m, 45m, 1h, 2h)
+- **Pick a color** for each timer
+- **Play / Pause / Reset** controls on each timer
+- **Progress bar** drains in real-time as the timer counts down
+- **"Done!" blink** animation when a timer finishes
+- **Persists across reloads** — timers are saved to localStorage
+- **Tap name/time** to edit or delete a timer
+
+### Timer card options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `title` | string | `Timers` | Card header. Set to `false` to hide |
+
+---
+
 ## Development
 
 ```bash
@@ -213,7 +281,7 @@ npm run build       # build once
 npm run watch       # rebuild on changes
 ```
 
-The compiled card will be at `dist/countdown-card.js`.
+The compiled card will be at `dist/countdown-card.js` (includes both countdown and timer cards).
 
 ## Credits
 

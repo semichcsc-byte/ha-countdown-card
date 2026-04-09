@@ -22,11 +22,14 @@ jobs:
 
       # Copy to root for HACS
       - run: cp dist/countdown-card.js countdown-card.js
+      - run: cp dist/countdown-timer-card.js countdown-timer-card.js
 
       # Only create release when pushing a tag
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/countdown-card.js
+          files: |
+            dist/countdown-card.js
+            dist/countdown-timer-card.js
           generate_release_notes: true

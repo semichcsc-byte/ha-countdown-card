@@ -33,6 +33,7 @@ const FormMixin = (Base) => class extends Base {
     this._calView = 'days';
     this._formHour = '';
     this._formMinute = '';
+    this._formWaze = '';
     this._emojiOpen = false;
   }
 
@@ -55,6 +56,7 @@ const FormMixin = (Base) => class extends Base {
       this._formHour = '';
       this._formMinute = '';
     }
+    this._formWaze = e.waze_entity || '';
     this._calView = 'days';
     this._emojiOpen = false;
   }
@@ -67,7 +69,7 @@ const FormMixin = (Base) => class extends Base {
     const dateStr = hasTime
       ? `${this._calY}-${mm}-${dd} ${String(this._formHour).padStart(2,'0')}:${String(this._formMinute).padStart(2,'0')}`
       : `${this._calY}-${mm}-${dd}`;
-    return {
+    const evt = {
       name: this._formName.trim(),
       date: dateStr,
       icon: this._formIcon,
@@ -75,6 +77,8 @@ const FormMixin = (Base) => class extends Base {
       type: this._formType,
       recurring: this._formRecurring === 'never' ? false : this._formRecurring,
     };
+    if (this._formWaze && this._formWaze.trim()) evt.waze_entity = this._formWaze.trim();
+    return evt;
   }
 
   // Calendar helpers
@@ -225,6 +229,17 @@ const FormMixin = (Base) => class extends Base {
           <button class="tb ${this._formRecurring === v ? 'on' : ''}"
                   @click=${() => { this._formRecurring = v; }}>${v[0].toUpperCase() + v.slice(1)}</button>
         `)}
+      </div>
+
+      <div class="fl">Waze Travel Time <span style="font-weight:400;opacity:.6">(optional)</span></div>
+      <div class="tr">
+        <ha-icon icon="mdi:car" style="--mdc-icon-size:20px;color:var(--t2,var(--secondary-text-color,#888));margin-right:4px"></ha-icon>
+        <input type="text" class="ni" placeholder="sensor.waze_home_to_work"
+               .value=${this._formWaze || ''}
+               @input=${(e) => { this._formWaze = e.target.value; }}>
+        ${this._formWaze ? html`
+          <button class="time-clear" @click=${() => { this._formWaze = ''; }}>✕</button>
+        ` : ''}
       </div>
 
       <button class="savbtn" @click=${onSave} ?disabled=${!this._formName.trim()}>Save</button>
@@ -449,6 +464,7 @@ class CountdownCard extends FormMixin(LitElement) {
       _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
       _formHour: { state: true }, _formMinute: { state: true },
+      _formWaze: { state: true },
     };
   }
 
@@ -485,6 +501,21 @@ class CountdownCard extends FormMixin(LitElement) {
   }
 
   set hass(h) { this._hass = h; }
+
+  // ── Waze helper ─────────────────────────────────────────────────
+  _getWazeInfo(entityId) {
+    if (!entityId || !this._hass) return null;
+    const s = this._hass.states[entityId];
+    if (!s || s.state === 'unavailable' || s.state === 'unknown') return null;
+    const dur = parseFloat(s.state);
+    if (isNaN(dur)) return null;
+    const mins = Math.round(dur);
+    const dist = s.attributes.distance;
+    const route = s.attributes.route;
+    let label = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins} min`;
+    if (dist) label += ` · ${Math.round(dist * 10) / 10} km`;
+    return { label, route, mins, dist };
+  }
 
   // ── Lifecycle ───────────────────────────────────────────────────
   connectedCallback() {
@@ -574,6 +605,23 @@ class CountdownCard extends FormMixin(LitElement) {
       return a.isPast ? 1 : -1;
     });
     return out;
+  }
+
+  // ── Progress bar ──────────────────────────────────────────────
+  _progressPct(e) {
+    if (e.isToday || e.isPast) return 0;
+    const now = Date.now();
+    const targetMs = e.targetDate.getTime();
+    const rec = e.recurring === true ? 'yearly' : (e.recurring || false);
+    let periodMs;
+    if (rec === 'daily') periodMs = MS_PER_DAY;
+    else if (rec === 'weekly') periodMs = MS_PER_DAY * 7;
+    else if (rec === 'monthly') periodMs = MS_PER_DAY * 30;
+    else if (rec === 'yearly') periodMs = MS_PER_DAY * 365;
+    else periodMs = targetMs - e.originalDate.getTime();
+    if (periodMs <= 0) return 0;
+    const remaining = targetMs - now;
+    return Math.max(0, Math.min(100, (remaining / periodMs) * 100));
   }
 
   // ── Helpers ─────────────────────────────────────────────────────
@@ -880,20 +928,36 @@ class CountdownCard extends FormMixin(LitElement) {
     const isMdi = e.icon && !e.icon.includes(':') && e.icon.length > 2;
     const rowStyle = rs === 'minimal' ? '' : rs === 'soft' ? `background:${c}33` : `background:${c}`;
     const textWhite = rs === 'solid';
+    const showProgress = this.config.show_progress === true;
+    const rawPct = showProgress ? this._progressPct(e) : 0;
+    const pct = this.config.progress_mode === 'fill' ? (100 - rawPct) : rawPct;
+    const pOpacity = this.config.progress_opacity != null ? this.config.progress_opacity : 0.15;
     return html`
       <div class="row ${e.isPast ? 'past' : ''} ${this.config.editable !== false ? 'editable' : ''} ${e.isToday ? 'today' : ''} rs-${rs}"
            style="${rowStyle}"
            @click=${() => { if (this.config.editable !== false) this._openEdit(e); }}>
+        ${showProgress && !e.isPast && !e.isToday ? html`<div class="row-progress" style="width:${pct}%;background:${textWhite ? `rgba(255,255,255,${pOpacity})` : c};opacity:${textWhite ? 1 : pOpacity}"></div>` : ''}
         ${rs === 'minimal' ? html`<div class="accent" style="background:${c}"></div>` : ''}
         <div class="ico" style="color:${textWhite ? 'rgba(255,255,255,.9)' : c}">
           ${isMdi ? html`<ha-icon .icon=${`mdi:${e.icon}`}></ha-icon>` : html`<ha-icon icon="mdi:calendar"></ha-icon>`}
         </div>
         <div class="det">
           <div class="nm">${e.name}</div>
-          <div class="dt">${this._fmt(e.originalDate)}</div>
-          ${e.recurring && e.yearsElapsed > 0 ? html`
-            <div class="dt since">${e.yearsElapsed} ${e.yearsElapsed === 1 ? this._t('year', 'year') : this._t('years', 'years')} ${this._t('ago', 'ago')}</div>
+          ${this.config.show_date !== false ? html`
+            <div class="dt">${this._fmt(e.originalDate)}</div>
+            ${e.recurring && e.yearsElapsed > 0 ? html`
+              <div class="dt since">${e.yearsElapsed} ${e.yearsElapsed === 1 ? this._t('year', 'year') : this._t('years', 'years')} ${this._t('ago', 'ago')}</div>
+            ` : ''}
           ` : ''}
+          ${e.waze_entity ? (() => {
+            const w = this._getWazeInfo(e.waze_entity);
+            return w ? html`
+              <div class="waze-row">
+                <ha-icon icon="mdi:car" style="--mdc-icon-size:14px"></ha-icon>
+                <span class="waze-dur">${w.label}</span>
+                ${w.route ? html`<span class="waze-route">via ${w.route}</span>` : ''}
+              </div>` : '';
+          })() : ''}
         </div>
         <div class="cd ${e.isToday ? 'cd-today' : ''}"
              @click=${(ev) => { if (!e.isToday) this._cycleFormat(e, ev); }}
@@ -935,6 +999,11 @@ class CountdownCard extends FormMixin(LitElement) {
         overflow: hidden;
         transition: box-shadow .15s;
       }
+      .row-progress {
+        position: absolute; left: 0; top: 0; bottom: 0;
+        border-radius: 12px; pointer-events: none;
+        transition: width 1s linear;
+      }
       .row:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
       .row.editable { cursor: pointer; }
       .row.today { }
@@ -964,6 +1033,16 @@ class CountdownCard extends FormMixin(LitElement) {
       .row.rs-solid .cl { color: rgba(255,255,255,.8); }
       .dt { font-size: .78em; color: var(--t2); margin-top: 2px; }
       .dt.since { font-style: italic; }
+
+      /* Waze travel time */
+      .waze-row {
+        display: flex; align-items: center; gap: 4px;
+        font-size: .75em; margin-top: 3px;
+        color: var(--t2); opacity: .9;
+      }
+      .row.rs-solid .waze-row { color: rgba(255,255,255,.8); }
+      .waze-dur { font-weight: 600; }
+      .waze-route { opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .cd { text-align: right; flex-shrink: 0; min-width: 64px; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; padding-right: 2px; }
       .cd:active { opacity: .7; }
       .today-ico { display: flex; align-items: center; justify-content: center; --mdc-icon-size: 32px; }
@@ -1025,6 +1104,7 @@ class CountdownCardEditor extends FormMixin(LitElement) {
       _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
       _formHour: { state: true }, _formMinute: { state: true },
+      _formWaze: { state: true },
     };
   }
 
@@ -1120,6 +1200,15 @@ class CountdownCardEditor extends FormMixin(LitElement) {
         </div>
 
         <div class="fld row">
+          <label>Show date</label>
+          <label class="sw">
+            <input type="checkbox" .checked=${this._config.show_date !== false}
+                   @change=${() => { this._config = { ...this._config, show_date: !(this._config.show_date !== false) }; this._fire(); }}>
+            <span class="sl"></span>
+          </label>
+        </div>
+
+        <div class="fld row">
           <label>Show add button</label>
           <label class="sw">
             <input type="checkbox" .checked=${this._config.show_add !== false}
@@ -1127,6 +1216,35 @@ class CountdownCardEditor extends FormMixin(LitElement) {
             <span class="sl"></span>
           </label>
         </div>
+
+        <div class="fld row">
+          <label>Show progress bar</label>
+          <label class="sw">
+            <input type="checkbox" .checked=${this._config.show_progress === true}
+                   @change=${() => { this._config = { ...this._config, show_progress: !this._config.show_progress }; this._fire(); }}>
+            <span class="sl"></span>
+          </label>
+        </div>
+
+        ${this._config.show_progress ? html`
+        <div class="fld">
+          <label>Progress bar mode</label>
+          <div class="tg tg-wrap">
+            ${['drain','fill'].map(v => html`
+              <button class="tb ${(this._config.progress_mode || 'drain') === v ? 'on' : ''}"
+                      @click=${() => { this._config = { ...this._config, progress_mode: v }; this._fire(); }}>${v === 'drain' ? 'Drain' : 'Fill up'}</button>
+            `)}
+          </div>
+        </div>
+
+        <div class="fld">
+          <label>Progress bar opacity (${Math.round((this._config.progress_opacity != null ? this._config.progress_opacity : 0.15) * 100)}%)</label>
+          <input type="range" min="0.05" max="0.6" step="0.05"
+                 .value=${String(this._config.progress_opacity != null ? this._config.progress_opacity : 0.15)}
+                 @input=${(e) => { this._config = { ...this._config, progress_opacity: parseFloat(e.target.value) }; this._fire(); }}
+                 style="width:100%">
+        </div>
+        ` : nothing}
 
         <div class="fld">
           <label>Row style</label>
