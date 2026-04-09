@@ -611,7 +611,7 @@ class CountdownCard extends FormMixin(LitElement) {
   }
 
   // ── Format cycling ──────────────────────────────────────────────
-  _FORMATS = ['days', 'weeks', 'months', 'years', 'detail'];
+  _FORMATS = ['days', 'weeks', 'months', 'years', 'ym', 'detail'];
 
   _evtKey(e) { return `${e.name}|${e.date}`; }
 
@@ -661,6 +661,19 @@ class CountdownCard extends FormMixin(LitElement) {
     return parts.join(' ');
   }
 
+  _ymBreakdown(e) {
+    const from = e.isPast ? e.targetDate : new Date();
+    const to = e.isPast ? new Date() : e.targetDate;
+    let years = to.getFullYear() - from.getFullYear();
+    let months = to.getMonth() - from.getMonth();
+    if (to.getDate() < from.getDate()) months--;
+    if (months < 0) { years--; months += 12; }
+    const parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (months > 0 || parts.length === 0) parts.push(`${months}m`);
+    return parts.join(' ');
+  }
+
   _calcWeeks(days) { return Math.round(days / 7 * 10) / 10; }
 
   _calcMonths(from, to) {
@@ -698,6 +711,7 @@ class CountdownCard extends FormMixin(LitElement) {
         if (y > 0) return y;
         return this._calcMonths(from, to); // fallback to months when <1 year
       }
+      case 'ym': return this._ymBreakdown(e);
       case 'detail': return this._detailedBreakdown(e);
       default: return d;
     }
@@ -723,6 +737,7 @@ class CountdownCard extends FormMixin(LitElement) {
         );
         return mv === 1 ? `${this._t('month', 'month')} ${suffix}` : `${this._t('months', 'months')} ${suffix}`;
       }
+      case 'ym': return suffix;
       case 'detail': return suffix;
       default: { const rd = Math.round(e.absDiff); return rd === 1 ? `${this._t('day', 'day')} ${suffix}` : `${this._t('days', 'days')} ${suffix}`; }
     }
