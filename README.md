@@ -100,6 +100,12 @@ events:
     date: "2026-04-10 12:00"
     icon: food
     color: "#FF5722"
+  - name: Go to Work
+    date: "2026-04-10 09:00"
+    icon: briefcase
+    color: "#1565C0"
+    recurring: daily
+    waze_entity: sensor.waze_home_to_work
 ```
 
 ### Card options
