@@ -1164,6 +1164,12 @@ class CountdownCardEditor extends FormMixin(LitElement) {
 
   _setTitle(v) { this._config = { ...this._config, title: v || 'Countdowns' }; this._fire(); }
 
+  _togTitle() {
+    const showing = this._config.title !== false;
+    this._config = { ...this._config, title: showing ? false : 'Countdowns' };
+    this._fire();
+  }
+
   _togPast() {
     this._config = { ...this._config, show_past: !(this._config.show_past !== false) };
     this._fire();
@@ -1175,11 +1181,22 @@ class CountdownCardEditor extends FormMixin(LitElement) {
 
     return html`
       <div class="editor">
+        <div class="fld row">
+          <label>Show title</label>
+          <label class="sw">
+            <input type="checkbox" .checked=${this._config.title !== false}
+                   @change=${this._togTitle}>
+            <span class="sl"></span>
+          </label>
+        </div>
+
+        ${this._config.title !== false ? html`
         <div class="fld">
           <label>Card Title</label>
           <input type="text" .value=${this._config.title || 'Countdowns'}
                  @input=${(e) => this._setTitle(e.target.value)}>
         </div>
+        ` : ''}
 
         <div class="fld row">
           <label>Show past events</label>

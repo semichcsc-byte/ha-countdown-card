@@ -3,3 +3,4 @@ dist/
 .DS_Store
 src/countdown-card.js.backup
 Thumbs.db
+.vscode/mcp.json

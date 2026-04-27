@@ -494,13 +494,24 @@ const x=globalThis,w=t=>t,k=x.trustedTypes,A=k?k.createPolicy("lit-html",{create
         box-shadow: 0 24px 48px rgba(0,0,0,.3);
         color: var(--t1);
       }
-    `]}getCardSize(){const t=this.config?.events?.length||0;return Math.ceil(1.2*t)+2}}class ft extends(ht(at)){static get properties(){return{_config:{state:!0},_showForm:{state:!0},_editIdx:{state:!0},_formName:{state:!0},_formIcon:{state:!0},_formColor:{state:!0},_formType:{state:!0},_formRecurring:{state:!0},_calY:{state:!0},_calM:{state:!0},_calD:{state:!0},_calView:{state:!0},_emojiOpen:{state:!0},_formHour:{state:!0},_formMinute:{state:!0},_formWaze:{state:!0}}}constructor(){super(),this._showForm=!1,this._editIdx=-1,this._resetForm()}setConfig(t){this._config={...t,events:[...t.events||[]]}}set hass(t){this._hass=t}_fire(){this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}_openNew(){this._resetForm(),this._editIdx=-1,this._showForm=!0}_openEdit(t){const e=this._config.events[t];e&&(this._loadEventIntoForm(e),this._editIdx=t,this._showForm=!0)}_save(){const t=this._buildEventFromForm();if(!t)return;const e=[...this._config.events||[]];this._editIdx>=0?e[this._editIdx]=t:e.push(t),this._config={...this._config,events:e},this._fire(),this._showForm=!1}_del(t){const e=[...this._config.events||[]];e.splice(t,1),this._config={...this._config,events:e},this._fire(),this._showForm=!1}_move(t,e){const i=[...this._config.events||[]],s=t+e;s<0||s>=i.length||([i[t],i[s]]=[i[s],i[t]],this._config={...this._config,events:i},this._fire())}_setTitle(t){this._config={...this._config,title:t||"Countdowns"},this._fire()}_togPast(){this._config={...this._config,show_past:!(!1!==this._config.show_past)},this._fire()}render(){if(!this._config)return j``;const t=this._config.events||[];return j`
+    `]}getCardSize(){const t=this.config?.events?.length||0;return Math.ceil(1.2*t)+2}}class ft extends(ht(at)){static get properties(){return{_config:{state:!0},_showForm:{state:!0},_editIdx:{state:!0},_formName:{state:!0},_formIcon:{state:!0},_formColor:{state:!0},_formType:{state:!0},_formRecurring:{state:!0},_calY:{state:!0},_calM:{state:!0},_calD:{state:!0},_calView:{state:!0},_emojiOpen:{state:!0},_formHour:{state:!0},_formMinute:{state:!0},_formWaze:{state:!0}}}constructor(){super(),this._showForm=!1,this._editIdx=-1,this._resetForm()}setConfig(t){this._config={...t,events:[...t.events||[]]}}set hass(t){this._hass=t}_fire(){this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this._config},bubbles:!0,composed:!0}))}_openNew(){this._resetForm(),this._editIdx=-1,this._showForm=!0}_openEdit(t){const e=this._config.events[t];e&&(this._loadEventIntoForm(e),this._editIdx=t,this._showForm=!0)}_save(){const t=this._buildEventFromForm();if(!t)return;const e=[...this._config.events||[]];this._editIdx>=0?e[this._editIdx]=t:e.push(t),this._config={...this._config,events:e},this._fire(),this._showForm=!1}_del(t){const e=[...this._config.events||[]];e.splice(t,1),this._config={...this._config,events:e},this._fire(),this._showForm=!1}_move(t,e){const i=[...this._config.events||[]],s=t+e;s<0||s>=i.length||([i[t],i[s]]=[i[s],i[t]],this._config={...this._config,events:i},this._fire())}_setTitle(t){this._config={...this._config,title:t||"Countdowns"},this._fire()}_togTitle(){const t=!1!==this._config.title;this._config={...this._config,title:!t&&"Countdowns"},this._fire()}_togPast(){this._config={...this._config,show_past:!(!1!==this._config.show_past)},this._fire()}render(){if(!this._config)return j``;const t=this._config.events||[];return j`
       <div class="editor">
+        <div class="fld row">
+          <label>Show title</label>
+          <label class="sw">
+            <input type="checkbox" .checked=${!1!==this._config.title}
+                   @change=${this._togTitle}>
+            <span class="sl"></span>
+          </label>
+        </div>
+
+        ${!1!==this._config.title?j`
         <div class="fld">
           <label>Card Title</label>
           <input type="text" .value=${this._config.title||"Countdowns"}
                  @input=${t=>this._setTitle(t.target.value)}>
         </div>
+        `:""}
 
         <div class="fld row">
           <label>Show past events</label>
