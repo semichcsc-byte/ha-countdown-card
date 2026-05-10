@@ -4,3 +4,8 @@ dist/
 src/countdown-card.js.backup
 Thumbs.db
 .vscode/mcp.json
+
+# Environment (added by audit 2026-05-10)
+.env
+.env.local
+.env.*.local
