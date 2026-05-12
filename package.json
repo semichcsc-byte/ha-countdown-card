@@ -23,5 +23,8 @@
   },
   "dependencies": {
     "lit": "^3.2.0"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
   }
 }
