@@ -171,7 +171,7 @@ const FormMixin = (Base) => class extends Base {
 
     return html`
       <div class="fh">
-        <button class="ib" @click=${onClose}>✕</button>
+        <button class="ib" @click=${onClose} aria-label="Close">✕</button>
         <span class="ftit">${isEdit ? 'Edit Countdown' : 'New Countdown'}</span>
         <button class="savlnk" @click=${onSave} ?disabled=${!this._formName.trim()}>Save</button>
       </div>
@@ -187,6 +187,7 @@ const FormMixin = (Base) => class extends Base {
       <div class="icon-grid">
         ${HA_ICONS.map(ic => html`
           <button class="icon-opt ${ic === this._formIcon ? 'sel' : ''}"
+                  aria-label=${ic}
                   @click=${() => { this._formIcon = ic; }}>
             <ha-icon .icon=${`mdi:${ic}`}></ha-icon>
           </button>
@@ -210,7 +211,7 @@ const FormMixin = (Base) => class extends Base {
                .value=${this._formMinute}
                @input=${(e) => { this._formMinute = e.target.value; }}>
         ${this._formHour !== '' ? html`
-          <button class="time-clear" @click=${() => { this._formHour = ''; this._formMinute = ''; }}>✕</button>
+          <button class="time-clear" aria-label="Clear time" @click=${() => { this._formHour = ''; this._formMinute = ''; }}>✕</button>
         ` : ''}
       </div>
 
@@ -219,6 +220,7 @@ const FormMixin = (Base) => class extends Base {
         ${PRESET_COLORS.map(c => html`
           <button class="cdot ${c === this._formColor ? 'sel' : ''}"
                   style="background:${c}"
+                  aria-label="Select color"
                   @click=${() => { this._formColor = c; }}></button>
         `)}
       </div>
@@ -238,7 +240,7 @@ const FormMixin = (Base) => class extends Base {
                .value=${this._formWaze || ''}
                @input=${(e) => { this._formWaze = e.target.value; }}>
         ${this._formWaze ? html`
-          <button class="time-clear" @click=${() => { this._formWaze = ''; }}>✕</button>
+          <button class="time-clear" aria-label="Clear" @click=${() => { this._formWaze = ''; }}>✕</button>
         ` : ''}
       </div>
 
@@ -481,14 +483,18 @@ class CountdownCard extends FormMixin(LitElement) {
   }
 
   static getStubConfig() {
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const rel = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return iso(d); };
+    const now = new Date();
+    const nextMonthFirst = iso(new Date(now.getFullYear(), now.getMonth() + 1, 1));
     return {
       title: 'Countdowns',
       show_past: true,
       events: [
-        { name: 'Gym', date: '2026-04-07', icon: 'trophy', color: '#2E7D32', recurring: 'daily' },
-        { name: 'Team Meeting', date: '2026-04-09', icon: 'briefcase', color: '#EF6C00', recurring: 'weekly' },
-        { name: 'Pay Rent', date: '2026-05-01', icon: 'home', color: '#6A1B9A', recurring: 'monthly' },
-        { name: 'Summer Vacation', date: '2026-08-01', icon: 'airplane', color: '#1565C0' },
+        { name: 'Gym', date: rel(0), icon: 'trophy', color: '#2E7D32', recurring: 'daily' },
+        { name: 'Team Meeting', date: rel(2), icon: 'briefcase', color: '#EF6C00', recurring: 'weekly' },
+        { name: 'Pay Rent', date: nextMonthFirst, icon: 'home', color: '#6A1B9A', recurring: 'monthly' },
+        { name: 'Summer Vacation', date: rel(21), icon: 'airplane', color: '#1565C0' },
         { name: "Sarah's Birthday", date: '1990-03-15', icon: 'cake', color: '#7B1FA2', recurring: 'yearly' },
         { name: 'Got our Dog', date: '2022-06-10', icon: 'paw', color: '#4E342E' },
         { name: 'Bought the House', date: '2019-11-20', icon: 'home', color: '#00838F' },
@@ -497,10 +503,29 @@ class CountdownCard extends FormMixin(LitElement) {
   }
 
   setConfig(config) {
-    this.config = { ...config, events: config.events || [] };
+    if (config.events != null && !Array.isArray(config.events)) {
+      throw new Error('countdown-card: "events" must be a list');
+    }
+    const cfg = { ...config, events: config.events || [] };
+    // Stable per-card id so persistence targets the right card when several
+    // countdown cards share a dashboard. Generated in-memory when absent and
+    // written back on the next save.
+    if (!cfg.card_id) {
+      cfg.card_id = `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    }
+    this.config = cfg;
   }
 
-  set hass(h) { this._hass = h; }
+  set hass(h) {
+    const old = this._hass;
+    this._hass = h;
+    if (!old) { this.requestUpdate(); return; }
+    // Re-render promptly when a referenced Waze entity changes.
+    const ents = (this.config?.events || []).map(e => e.waze_entity).filter(Boolean);
+    for (const id of ents) {
+      if (old.states[id] !== h.states[id]) { this.requestUpdate(); break; }
+    }
+  }
 
   // ── Waze helper ─────────────────────────────────────────────────
   _getWazeInfo(entityId) {
@@ -543,7 +568,7 @@ class CountdownCard extends FormMixin(LitElement) {
 
     const now = new Date();
 
-    const proc = this._allEvents().map(evt => {
+    const proc = this._allEvents().filter(evt => typeof evt.date === 'string' && evt.date).map(evt => {
       const parts = evt.date.split(' ');
       const [py, pm, pd] = parts[0].split('-').map(Number);
       let origH = 0, origMi = 0;
@@ -638,12 +663,20 @@ class CountdownCard extends FormMixin(LitElement) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const monthsFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const wdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    return fmt
-      .replace('YYYY', year).replace('YY', String(year).slice(-2))
-      .replace('MMMM', monthsFull[mon - 1]).replace('MMM', months[mon - 1])
-      .replace('MM', pad(mon)).replace('DD', pad(day))
-      .replace('D', day).replace('M', mon)
-      .replace('ddd', wdays[d.getDay()]);
+    const map = {
+      YYYY: String(year),
+      YY: String(year).slice(-2),
+      MMMM: monthsFull[mon - 1],
+      MMM: months[mon - 1],
+      MM: pad(mon),
+      DD: pad(day),
+      ddd: wdays[d.getDay()],
+      D: String(day),
+      M: String(mon),
+    };
+    // Single pass with longest tokens first so substituted values (e.g. month
+    // names containing "D" or "M") are never re-matched.
+    return fmt.replace(/YYYY|YY|MMMM|MMM|MM|DD|ddd|D|M/g, (t) => map[t]);
   }
 
   _color(e) {
@@ -661,7 +694,7 @@ class CountdownCard extends FormMixin(LitElement) {
   // ── Format cycling ──────────────────────────────────────────────
   _FORMATS = ['days', 'weeks', 'months', 'years', 'ym', 'detail'];
 
-  _evtKey(e) { return `${e.name}|${e.date}`; }
+  _evtKey(e) { return `${this.config?.card_id || ''}|${e.name}|${e.date}`; }
 
   _loadFormats() {
     try { return JSON.parse(localStorage.getItem('countdown-card-formats') || '{}'); }
@@ -801,7 +834,7 @@ class CountdownCard extends FormMixin(LitElement) {
     }));
   }
 
-  async _persistToHA() {
+  async _persistToHA(prevEventsJson) {
     if (!this._hass) return;
 
     const path = window.location.pathname;
@@ -827,16 +860,30 @@ class CountdownCard extends FormMixin(LitElement) {
       return;
     }
 
-    // Recursively find and update the countdown card in any layout structure
+    const myId = this.config.card_id;
+    const newEvents = [...this.config.events];
+    // Recursively find and update *this* countdown card in any layout structure.
+    // Match by card_id when the stored node already has one; otherwise fall back
+    // to the pre-edit events snapshot, then stamp the id so future edits are
+    // unambiguous even with multiple countdown cards on the dashboard.
     const updateCard = (obj) => {
       if (!obj || typeof obj !== 'object') return false;
       if (Array.isArray(obj)) {
         for (let i = 0; i < obj.length; i++) {
-          if (obj[i]?.type === 'custom:countdown-card') {
-            obj[i] = { ...obj[i], events: [...this.config.events] };
-            return true;
+          const item = obj[i];
+          if (item?.type === 'custom:countdown-card') {
+            if (item.card_id) {
+              if (item.card_id === myId) {
+                obj[i] = { ...item, events: newEvents };
+                return true;
+              }
+            } else if (prevEventsJson == null ||
+                       JSON.stringify(item.events || []) === prevEventsJson) {
+              obj[i] = { ...item, card_id: myId, events: newEvents };
+              return true;
+            }
           }
-          if (updateCard(obj[i])) return true;
+          if (updateCard(item)) return true;
         }
         return false;
       }
@@ -886,22 +933,24 @@ class CountdownCard extends FormMixin(LitElement) {
   _handleSave() {
     const evt = this._buildEventFromForm();
     if (!evt) return;
+    const prevEventsJson = JSON.stringify(this.config.events || []);
     const evts = [...(this.config.events || [])];
     if (this._editIdx >= 0) evts[this._editIdx] = evt;
     else evts.push(evt);
     this.config = { ...this.config, events: evts };
     this._showForm = false;
     // Persist after dialog closes so HA reload notification doesn't cover UI
-    setTimeout(() => this._persistToHA(), 100);
+    setTimeout(() => this._persistToHA(prevEventsJson), 100);
   }
 
   _handleDelete() {
     if (this._editIdx < 0) return;
+    const prevEventsJson = JSON.stringify(this.config.events || []);
     const evts = [...(this.config.events || [])];
     evts.splice(this._editIdx, 1);
     this.config = { ...this.config, events: evts };
     this._showForm = false;
-    setTimeout(() => this._persistToHA(), 100);
+    setTimeout(() => this._persistToHA(prevEventsJson), 100);
   }
 
   _closeForm() { this._showForm = false; }
@@ -1323,10 +1372,10 @@ class CountdownCardEditor extends FormMixin(LitElement) {
                 <span class="edt">${ev.date}${ev.recurring ? ` · ${typeof ev.recurring === 'string' ? ev.recurring[0].toUpperCase() + ev.recurring.slice(1) : 'Yearly'}` : ''}${ev.type && ev.type !== 'event' ? ` · ${ev.type}` : ''}</span>
               </div>
               <div class="ea">
-                <button class="ib" @click=${() => this._move(i, -1)} ?disabled=${i === 0}>▲</button>
-                <button class="ib" @click=${() => this._move(i, 1)} ?disabled=${i === evts.length - 1}>▼</button>
-                <button class="ib" @click=${() => this._openEdit(i)}>✏️</button>
-                <button class="ib x" @click=${() => this._del(i)}>🗑️</button>
+                <button class="ib" aria-label="Move up" @click=${() => this._move(i, -1)} ?disabled=${i === 0}>▲</button>
+                <button class="ib" aria-label="Move down" @click=${() => this._move(i, 1)} ?disabled=${i === evts.length - 1}>▼</button>
+                <button class="ib" aria-label="Edit event" @click=${() => this._openEdit(i)}>✏️</button>
+                <button class="ib x" aria-label="Delete event" @click=${() => this._del(i)}>🗑️</button>
               </div>
             </div>
           `)}
