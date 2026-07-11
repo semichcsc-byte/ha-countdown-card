@@ -793,40 +793,69 @@ class CountdownCard extends FormMixin(LitElement) {
 
   // ── Form actions ────────────────────────────────────────────────
   // ── Persist config to HA dashboard via websocket ─────────────
+  _notify(message) {
+    this.dispatchEvent(new CustomEvent('hass-notification', {
+      detail: { message },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   async _persistToHA() {
     if (!this._hass) return;
-    try {
-      const path = window.location.pathname;
-      const match = path.match(/^\/([^/]+)/);
-      let urlPath = match ? match[1] : null;
-      if (urlPath === 'lovelace') urlPath = null;
 
-      const dashConfig = await this._hass.callWS({
+    const path = window.location.pathname;
+    const match = path.match(/^\/([^/]+)/);
+    let urlPath = match ? match[1] : null;
+    if (urlPath === 'lovelace') urlPath = null;
+
+    let dashConfig;
+    try {
+      dashConfig = await this._hass.callWS({
         type: 'lovelace/config',
         url_path: urlPath,
       });
+    } catch (e) {
+      // A "config not found" error means the dashboard is in YAML/storage
+      // mode where the UI cannot write changes back.
+      console.warn('countdown-card: failed to read dashboard config', e);
+      this._notify(
+        'Countdown card: this dashboard is in YAML mode, so countdowns can’t ' +
+        'be saved and will be lost on reload. Switch the dashboard to UI (storage) ' +
+        'mode, or edit the card’s YAML directly to add events.'
+      );
+      return;
+    }
 
-      // Recursively find and update the countdown card in any layout structure
-      const updateCard = (obj) => {
-        if (!obj || typeof obj !== 'object') return false;
-        if (Array.isArray(obj)) {
-          for (let i = 0; i < obj.length; i++) {
-            if (obj[i]?.type === 'custom:countdown-card') {
-              obj[i] = { ...obj[i], events: [...this.config.events] };
-              return true;
-            }
-            if (updateCard(obj[i])) return true;
+    // Recursively find and update the countdown card in any layout structure
+    const updateCard = (obj) => {
+      if (!obj || typeof obj !== 'object') return false;
+      if (Array.isArray(obj)) {
+        for (let i = 0; i < obj.length; i++) {
+          if (obj[i]?.type === 'custom:countdown-card') {
+            obj[i] = { ...obj[i], events: [...this.config.events] };
+            return true;
           }
-          return false;
-        }
-        for (const key of Object.keys(obj)) {
-          if (updateCard(obj[key])) return true;
+          if (updateCard(obj[i])) return true;
         }
         return false;
-      };
+      }
+      for (const key of Object.keys(obj)) {
+        if (updateCard(obj[key])) return true;
+      }
+      return false;
+    };
 
-      if (!updateCard(dashConfig)) return;
+    if (!updateCard(dashConfig)) {
+      console.warn('countdown-card: could not locate card in dashboard config');
+      this._notify(
+        'Countdown card: couldn’t find this card in the dashboard configuration, ' +
+        'so the countdown was not saved.'
+      );
+      return;
+    }
 
+    try {
       await this._hass.callWS({
         type: 'lovelace/config/save',
         url_path: urlPath,
@@ -834,6 +863,10 @@ class CountdownCard extends FormMixin(LitElement) {
       });
     } catch (e) {
       console.warn('countdown-card: failed to persist', e);
+      this._notify(
+        'Countdown card: couldn’t save changes to this dashboard (it may be ' +
+        'read-only or in YAML mode). Your countdowns will be lost on reload.'
+      );
     }
   }
 
