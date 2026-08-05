@@ -611,6 +611,8 @@ class CountdownCard extends FormMixin(LitElement) {
       let ye = today.getFullYear() - orig.getFullYear();
       const md = today.getMonth() - orig.getMonth();
       if (md < 0 || (md === 0 && today.getDate() < orig.getDate())) ye--;
+      // Age reached on the next occurrence (birthdays: "turns N")
+      const yat = rec === 'yearly' ? target.getFullYear() - orig.getFullYear() : 0;
 
       const diffMs = target.getTime() - (hasTime ? now.getTime() : t0);
       const diff = hasTime ? diffMs / MS_PER_DAY : Math.round(diffMs / MS_PER_DAY);
@@ -618,7 +620,7 @@ class CountdownCard extends FormMixin(LitElement) {
       return {
         ...evt, icon: evt.icon || 'calendar', originalDate: orig, targetDate: target,
         diff, absDiff: Math.abs(diff), isToday: !hasTime && isToday, isPast: hasTime ? diffMs < 0 : diff < 0,
-        hasTime, diffMs, yearsElapsed: ye,
+        hasTime, diffMs, yearsElapsed: ye, yearsAtTarget: yat,
       };
     });
 
@@ -1027,8 +1029,10 @@ class CountdownCard extends FormMixin(LitElement) {
           <div class="nm">${e.name}</div>
           ${this.config.show_date !== false ? html`
             <div class="dt">${this._fmt(e.originalDate)}</div>
-            ${e.recurring && e.yearsElapsed > 0 ? html`
-              <div class="dt since">${e.yearsElapsed} ${e.yearsElapsed === 1 ? this._t('year', 'year') : this._t('years', 'years')} ${this._t('ago', 'ago')}</div>
+            ${e.recurring && (e.yearsAtTarget > 0 || e.yearsElapsed > 0) ? html`
+              <div class="dt since">${e.yearsAtTarget > 0
+                ? `${this._t('turns', 'turns')} ${e.yearsAtTarget}`
+                : `${e.yearsElapsed} ${e.yearsElapsed === 1 ? this._t('year', 'year') : this._t('years', 'years')} ${this._t('ago', 'ago')}`}</div>
             ` : ''}
           ` : ''}
           ${e.waze_entity ? (() => {

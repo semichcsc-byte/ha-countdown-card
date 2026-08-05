@@ -219,6 +219,7 @@ strings:
   months: "meses"
   year: "ano"
   years: "anos"
+  turns: "faz"
   upcoming: "Próximos"
   past: "Passados"
   today_label: "hoje"
