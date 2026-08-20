@@ -1,0 +1,19 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # HACS validates against its current rules, so this catches breakage
+    # introduced by HACS itself, not just by our commits.
+    - cron: "0 4 * * 1"
+
+jobs:
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: plugin
