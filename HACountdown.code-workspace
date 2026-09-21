@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.watcherExclude": {
+			"**/dist/**": true
+		},
+		"search.exclude": {
+			"dist": true
+		}
+	}
+}
