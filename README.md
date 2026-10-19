@@ -1,6 +1,6 @@
 # Countdown Card & Timer for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Available in HACS](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://hacs.xyz/)
 
 A clean, native-looking countdown card for Home Assistant. Track birthdays, holidays, vacations, and any important dates right on your dashboard. Now also includes a **Timer Card** for quick countdown timers and **Waze Travel Time** integration.
 
@@ -43,13 +43,13 @@ This is **not** a direct copy. The codebase is written entirely from scratch for
 
 ### HACS (Recommended)
 
-1. Open HACS → **Frontend**
-2. Click ⋮ → **Custom repositories**
-3. Add this repository URL, category: **Dashboard**
-4. Search for **Countdown Card** and install it
-5. Restart Home Assistant
-6. Go to any dashboard → Edit → **+ Add Card** → search for **Countdown Card**
-7. Done! Use the **+ New Countdown** button to start adding events
+1. Open **HACS**
+2. Search for **Countdown Card** and download it
+3. Reload the Home Assistant page
+4. Go to any dashboard → Edit → **+ Add Card** → search for **Countdown Card** or **Countdown Timer Card**
+5. For Countdown Card, use the **+ New Countdown** button to start adding events
+
+This repository is included in the default HACS catalog, so there is no need to add a custom repository. A Home Assistant restart is not required.
 
 ### Manual
 
