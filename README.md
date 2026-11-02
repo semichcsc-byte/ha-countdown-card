@@ -22,7 +22,7 @@ This is **not** a direct copy. The codebase is written entirely from scratch for
 - **Add events directly from the card** — tap the + button, no need to edit YAML
 - **Edit & delete** — tap any event to modify or remove it
 - **Synced across devices** — events are saved to the dashboard config, visible on all devices
-- **Recurring events** — daily, weekly, monthly, or yearly
+- **Recurring events** — daily, weekly, monthly, or yearly, with an optional interval (e.g. every 2 weeks)
 - **Visual editor** — full GUI editor in HA edit mode (calendar picker, icon picker, color picker)
 - **Year/month picker** — navigate the calendar quickly
 - **Upcoming/Past sections** — clear visual separation
@@ -96,6 +96,12 @@ events:
     icon: home
     color: "#6A1B9A"
     recurring: monthly
+  - name: Garbage Collection
+    date: "2026-04-06"
+    icon: delete
+    color: "#2E7D32"
+    recurring: weekly
+    interval: 2
   - name: Friday Lunch
     date: "2026-04-10 12:00"
     icon: food
@@ -135,6 +141,7 @@ events:
 | `icon` | string | `calendar` | Material Design icon name (without `mdi:` prefix) |
 | `color` | string | auto | Color as hex (e.g. `#C62828`) |
 | `recurring` | string | `false` | `daily`, `weekly`, `monthly`, or `yearly` |
+| `interval` | number | `1` | Repeat every N periods, e.g. `recurring: weekly` + `interval: 2` = every other week. Occurrences are counted from `date` |
 | `waze_entity` | string | — | Waze Travel Time sensor entity (e.g. `sensor.waze_home_to_work`) |
 
 ### Date format tokens
