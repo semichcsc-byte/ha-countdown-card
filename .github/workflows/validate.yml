@@ -1,8 +1,12 @@
 name: Validate
 
+permissions:
+  contents: read
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
   schedule:
     # HACS validates against its current rules, so this catches breakage
     # introduced by HACS itself, not just by our commits.
@@ -10,10 +14,11 @@ on:
 
 jobs:
   hacs:
-    name: HACS
+    name: Marketplace / HACS
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
         with:
           category: plugin
+          comment: false
