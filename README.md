@@ -39,9 +39,27 @@ This is **not** a direct copy. The codebase is written entirely from scratch for
 - **Waze travel time** — show live travel time, distance, and route on any event row
 - **Lightweight** — single JS file, no external dependencies
 
+<!-- ha-marketplace:exclude-start -->
 ## Installation
 
-### HACS (Recommended)
+### Home Assistant Marketplace (2026.11 or newer)
+
+[![Open Countdown Card & Timer in the Home Assistant Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=semichcsc-byte&repository=ha-countdown-card&category=plugin)
+
+1. Open the repository with the button above, or search for **Countdown Card** in the Marketplace.
+2. Install it and reload the Home Assistant page.
+3. Go to any dashboard → Edit → **+ Add Card** → search for **Countdown Card** or **Countdown Timer Card**.
+4. For Countdown Card, use **+ New Countdown** to start adding events.
+
+The Marketplace uses the same default catalog as HACS. Existing HACS installations
+migrate automatically; do not install a second copy. Both cards are bundled in
+`countdown-card.js`, which is registered automatically as a JavaScript module.
+For YAML-managed resources, use the URL shown in the install dialog:
+`/local/community/ha-countdown-card/countdown-card.js`.
+
+### HACS (Home Assistant 2026.10 and earlier)
+
+[Open this repository in HACS](https://my.home-assistant.io/redirect/hacs_repository/?owner=semichcsc-byte&repository=ha-countdown-card&category=plugin).
 
 1. Open **HACS**
 2. Search for **Countdown Card** and download it
@@ -58,6 +76,8 @@ This repository is included in the default HACS catalog, so there is no need to 
 3. Go to **Settings → Dashboards → Resources → Add Resource**
    - URL: `/local/countdown-card.js`
    - Type: JavaScript Module
+
+<!-- ha-marketplace:exclude-end -->
 
 ## Usage
 
