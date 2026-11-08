@@ -181,6 +181,35 @@ const FormMixin = (Base) => class extends Base {
   }
 
 
+  _onIconPicked(e) {
+    this._formIcon = normalizeIcon(e.detail?.value);
+  }
+
+  _renderIconField() {
+    // ha-icon-picker is part of the HA frontend. Its value-changed event does
+    // not bubble, so the listener has to sit on the element itself.
+    if (customElements.get('ha-icon-picker')) {
+      return html`
+        <ha-icon-picker
+          class="icon-picker"
+          label="Icon"
+          .value=${resolveIcon(this._formIcon)}
+          @value-changed=${this._onIconPicked}
+        ></ha-icon-picker>
+      `;
+    }
+    return html`
+      <div class="fl">Icon</div>
+      <div class="tr icon-custom">
+        <ha-icon .icon=${resolveIcon(this._formIcon)}></ha-icon>
+        <input type="text" class="ni" placeholder="icon name (e.g. food, rocket, mdi:bike)"
+               .value=${this._formIcon}
+               @input=${(e) => { this._formIcon = e.target.value; }}
+               @blur=${(e) => { this._formIcon = normalizeIcon(e.target.value); }}>
+      </div>
+    `;
+  }
+
   _renderFormBody(isEdit, onSave, onDelete, onClose) {
     const today = new Date();
 
@@ -198,15 +227,7 @@ const FormMixin = (Base) => class extends Base {
                @input=${(e) => { this._formName = e.target.value; }}>
       </div>
 
-      <div class="fl">Icon</div>
-      <div class="tr icon-custom">
-        <ha-icon .icon=${resolveIcon(this._formIcon)}></ha-icon>
-        <input type="text" class="ni" placeholder="icon name (e.g. food, rocket, mdi:bike)"
-               .value=${this._formIcon}
-               @input=${(e) => { this._formIcon = e.target.value; }}
-               @blur=${(e) => { this._formIcon = normalizeIcon(e.target.value); }}>
-      </div>
-      <div class="icon-hint">Any <a href="https://pictogrammers.com/library/mdi/" target="_blank" rel="noopener">Material Design Icon</a> name works — presets below are shortcuts.</div>
+      ${this._renderIconField()}
       <div class="icon-grid">
         ${HA_ICONS.map(ic => html`
           <button class="icon-opt ${ic === this._formIcon ? 'sel' : ''}"
@@ -315,7 +336,7 @@ const FORM_STYLES = css`
   /* Icon grid */
   .icon-grid {
     display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
-    padding: 8px;
+    margin-top: 8px; padding: 8px;
     background: var(--sf, var(--secondary-background-color, #f5f5f5));
     border-radius: 12px;
   }
@@ -333,19 +354,15 @@ const FORM_STYLES = css`
     background: rgba(25,118,210,.08);
   }
   .icon-opt ha-icon { --mdc-icon-size: 20px; }
+  .icon-picker {
+    display: block;
+    width: 100%;
+    margin-top: 16px;
+  }
   .icon-custom ha-icon {
     --mdc-icon-size: 22px;
     color: var(--a, var(--primary-color, #1976D2));
     flex-shrink: 0;
-  }
-  .icon-hint {
-    font-size: .75em;
-    color: var(--t2, var(--secondary-text-color, #888));
-    margin: 6px 0 0;
-    line-height: 1.35;
-  }
-  .icon-hint a {
-    color: var(--a, var(--primary-color, #1976D2));
   }
   .ni {
     flex: 1; border: none; background: transparent; font-size: 1em;
