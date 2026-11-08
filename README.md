@@ -26,7 +26,7 @@ This is **not** a direct copy. The codebase is written entirely from scratch for
 - **Visual editor** — full GUI editor in HA edit mode (calendar picker, icon picker, color picker)
 - **Year/month picker** — navigate the calendar quickly
 - **Upcoming/Past sections** — clear visual separation
-- **Material Design icons** — uses `mdi:` icons, consistent with HA
+- **Material Design icons** — any `mdi:` icon from the [MDI library](https://pictogrammers.com/library/mdi/), with presets plus free-text entry in the editor
 - **"X years ago" display** — recurring events show years elapsed (e.g. "36 years ago" for birthdays)
 - **Time support** — countdown to a specific hour (e.g. "7h 25m left")
 - **Row styles** — solid (vibrant), soft (subtle tint), or minimal (accent bar only)
@@ -152,7 +152,7 @@ events:
 |--------|------|---------|-------------|
 | `name` | string | required | Event name |
 | `date` | string | required | Date in `YYYY-MM-DD` or `YYYY-MM-DD HH:MM` format |
-| `icon` | string | `calendar` | Material Design icon name (without `mdi:` prefix) |
+| `icon` | string | `calendar` | Any [Material Design Icon](https://pictogrammers.com/library/mdi/) name (with or without `mdi:` prefix). The visual editor includes presets plus a free-text field. |
 | `color` | string | auto | Color as hex (e.g. `#C62828`) |
 | `recurring` | string | `false` | `daily`, `weekly`, `monthly`, or `yearly` |
 | `waze_entity` | string | — | Waze Travel Time sensor entity (e.g. `sensor.waze_home_to_work`) |

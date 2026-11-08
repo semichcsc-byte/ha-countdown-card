@@ -14,6 +14,21 @@ const HA_ICONS = [
   'palm-tree', 'snowflake', 'star', 'trophy', 'music', 'paw',
 ];
 
+/** Normalize icon config to a bare MDI name when possible (keeps custom prefixes). */
+const normalizeIcon = (icon) => {
+  if (!icon || typeof icon !== 'string') return 'calendar';
+  const trimmed = icon.trim();
+  if (!trimmed) return 'calendar';
+  if (trimmed.toLowerCase().startsWith('mdi:')) return trimmed.slice(4);
+  return trimmed;
+};
+
+/** Resolve stored icon to a full HA icon id for <ha-icon>. */
+const resolveIcon = (icon) => {
+  const normalized = normalizeIcon(icon);
+  return normalized.includes(':') ? normalized : `mdi:${normalized}`;
+};
+
 
 // ─────────────────────────────────────────────────────────────────
 // Shared form rendering mixin (used by both card overlay and editor)
@@ -41,7 +56,7 @@ const FormMixin = (Base) => class extends Base {
     const parts = e.date.split(' ');
     const [y, m, d] = parts[0].split('-').map(Number);
     this._formName = e.name;
-    this._formIcon = e.icon || 'calendar';
+    this._formIcon = normalizeIcon(e.icon);
     this._formColor = e.color || PRESET_COLORS[0];
     this._formType = e.type || 'event';
     this._formRecurring = e.recurring === true ? 'yearly' : (e.recurring || 'never');
@@ -72,7 +87,7 @@ const FormMixin = (Base) => class extends Base {
     const evt = {
       name: this._formName.trim(),
       date: dateStr,
-      icon: this._formIcon,
+      icon: normalizeIcon(this._formIcon),
       color: this._formColor,
       type: this._formType,
       recurring: this._formRecurring === 'never' ? false : this._formRecurring,
@@ -184,6 +199,14 @@ const FormMixin = (Base) => class extends Base {
       </div>
 
       <div class="fl">Icon</div>
+      <div class="tr icon-custom">
+        <ha-icon .icon=${resolveIcon(this._formIcon)}></ha-icon>
+        <input type="text" class="ni" placeholder="icon name (e.g. food, rocket, mdi:bike)"
+               .value=${this._formIcon}
+               @input=${(e) => { this._formIcon = e.target.value; }}
+               @blur=${(e) => { this._formIcon = normalizeIcon(e.target.value); }}>
+      </div>
+      <div class="icon-hint">Any <a href="https://pictogrammers.com/library/mdi/" target="_blank" rel="noopener">Material Design Icon</a> name works — presets below are shortcuts.</div>
       <div class="icon-grid">
         ${HA_ICONS.map(ic => html`
           <button class="icon-opt ${ic === this._formIcon ? 'sel' : ''}"
@@ -310,6 +333,20 @@ const FORM_STYLES = css`
     background: rgba(25,118,210,.08);
   }
   .icon-opt ha-icon { --mdc-icon-size: 20px; }
+  .icon-custom ha-icon {
+    --mdc-icon-size: 22px;
+    color: var(--a, var(--primary-color, #1976D2));
+    flex-shrink: 0;
+  }
+  .icon-hint {
+    font-size: .75em;
+    color: var(--t2, var(--secondary-text-color, #888));
+    margin: 6px 0 0;
+    line-height: 1.35;
+  }
+  .icon-hint a {
+    color: var(--a, var(--primary-color, #1976D2));
+  }
   .ni {
     flex: 1; border: none; background: transparent; font-size: 1em;
     color: var(--t1, var(--primary-text-color, #333));
@@ -1009,7 +1046,7 @@ class CountdownCard extends FormMixin(LitElement) {
   _row(e) {
     const c = this._color(e);
     const rs = this.config.row_style || 'solid';
-    const isMdi = e.icon && !e.icon.includes(':') && e.icon.length > 2;
+    const iconId = resolveIcon(e.icon);
     const rowStyle = rs === 'minimal' ? '' : rs === 'soft' ? `background:${c}33` : `background:${c}`;
     const textWhite = rs === 'solid';
     const showProgress = this.config.show_progress === true;
@@ -1023,7 +1060,7 @@ class CountdownCard extends FormMixin(LitElement) {
         ${showProgress && !e.isPast && !e.isToday ? html`<div class="row-progress" style="width:${pct}%;background:${textWhite ? `rgba(255,255,255,${pOpacity})` : c};opacity:${textWhite ? 1 : pOpacity}"></div>` : ''}
         ${rs === 'minimal' ? html`<div class="accent" style="background:${c}"></div>` : ''}
         <div class="ico" style="color:${textWhite ? 'rgba(255,255,255,.9)' : c}">
-          ${isMdi ? html`<ha-icon .icon=${`mdi:${e.icon}`}></ha-icon>` : html`<ha-icon icon="mdi:calendar"></ha-icon>`}
+          <ha-icon .icon=${iconId}></ha-icon>
         </div>
         <div class="det">
           <div class="nm">${e.name}</div>
@@ -1050,7 +1087,7 @@ class CountdownCard extends FormMixin(LitElement) {
              title="${e.isToday ? '' : 'Tap to change format'}">
           ${e.isToday ? html`
             <div class="today-ico" style="color:${textWhite ? 'rgba(255,255,255,.9)' : c}">
-              ${isMdi ? html`<ha-icon .icon=${`mdi:${e.icon}`}></ha-icon>` : html`<ha-icon icon="mdi:calendar"></ha-icon>`}
+              <ha-icon .icon=${iconId}></ha-icon>
             </div>
             <div class="cl" style="${textWhite ? '' : `color:var(--t2)`}">${this._t('today_label', 'today')}</div>
           ` : html`
