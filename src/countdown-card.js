@@ -13,6 +13,22 @@ const HA_ICONS = [
   'gift', 'heart', 'ring', 'baby-carriage', 'school', 'briefcase',
   'palm-tree', 'snowflake', 'star', 'trophy', 'music', 'paw',
 ];
+const REC_UNITS = { daily: 'day', weekly: 'week', monthly: 'month', yearly: 'year' };
+
+// Normalise an event's recurrence into { rec, interval }.
+// `recurring: true` is legacy for yearly; `interval` defaults to 1.
+const getRecurrence = (evt) => {
+  const rec = evt.recurring === true ? 'yearly' : (REC_UNITS[evt.recurring] ? evt.recurring : false);
+  const n = parseInt(evt.interval, 10);
+  return { rec, interval: rec && n > 1 ? n : 1 };
+};
+
+// Human label: "Weekly", "Every 2 weeks", …
+const recurrenceLabel = (evt) => {
+  const { rec, interval } = getRecurrence(evt);
+  if (!rec) return '';
+  return interval > 1 ? `Every ${interval} ${REC_UNITS[rec]}s` : rec[0].toUpperCase() + rec.slice(1);
+};
 
 
 // ─────────────────────────────────────────────────────────────────
@@ -27,6 +43,7 @@ const FormMixin = (Base) => class extends Base {
     this._formColor = PRESET_COLORS[0];
     this._formType = 'event';
     this._formRecurring = 'never';
+    this._formInterval = 1;
     this._calY = n.getFullYear();
     this._calM = n.getMonth();
     this._calD = n.getDate();
@@ -44,7 +61,9 @@ const FormMixin = (Base) => class extends Base {
     this._formIcon = e.icon || 'calendar';
     this._formColor = e.color || PRESET_COLORS[0];
     this._formType = e.type || 'event';
-    this._formRecurring = e.recurring === true ? 'yearly' : (e.recurring || 'never');
+    const { rec, interval } = getRecurrence(e);
+    this._formRecurring = rec || 'never';
+    this._formInterval = interval;
     this._calY = y;
     this._calM = m - 1;
     this._calD = d;
@@ -77,6 +96,8 @@ const FormMixin = (Base) => class extends Base {
       type: this._formType,
       recurring: this._formRecurring === 'never' ? false : this._formRecurring,
     };
+    const interval = parseInt(this._formInterval, 10);
+    if (evt.recurring && interval > 1) evt.interval = interval;
     if (this._formWaze && this._formWaze.trim()) evt.waze_entity = this._formWaze.trim();
     return evt;
   }
@@ -232,6 +253,16 @@ const FormMixin = (Base) => class extends Base {
                   @click=${() => { this._formRecurring = v; }}>${v[0].toUpperCase() + v.slice(1)}</button>
         `)}
       </div>
+      ${this._formRecurring !== 'never' ? html`
+        <div class="time-row" style="margin-top:8px">
+          <span>Every</span>
+          <input type="number" class="time-inp" min="1" max="999" placeholder="1"
+                 aria-label="Repeat interval"
+                 .value=${String(this._formInterval)}
+                 @input=${(e) => { this._formInterval = e.target.value; }}>
+          <span>${REC_UNITS[this._formRecurring]}${parseInt(this._formInterval, 10) > 1 ? 's' : ''}</span>
+        </div>
+      ` : ''}
 
       <div class="fl">Waze Travel Time <span style="font-weight:400;opacity:.6">(optional)</span></div>
       <div class="tr">
@@ -463,6 +494,7 @@ class CountdownCard extends FormMixin(LitElement) {
       _formName: { state: true }, _formIcon: { state: true },
       _formColor: { state: true }, _formType: { state: true },
       _formRecurring: { state: true },
+      _formInterval: { state: true },
       _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
       _formHour: { state: true }, _formMinute: { state: true },
@@ -576,37 +608,11 @@ class CountdownCard extends FormMixin(LitElement) {
       const hasTime = !!parts[1];
       const orig = new Date(py, pm - 1, pd, origH, origMi);
       let target = new Date(orig);
-      const rec = evt.recurring === true ? 'yearly' : (evt.recurring || false);
+      const { rec, interval } = getRecurrence(evt);
 
       const cmpTime = hasTime ? now.getTime() : t0;
 
-      if (rec === 'yearly') {
-        target = new Date(today.getFullYear(), orig.getMonth(), orig.getDate(), origH, origMi);
-        if (target.getTime() < cmpTime)
-          target = new Date(today.getFullYear() + 1, orig.getMonth(), orig.getDate(), origH, origMi);
-      } else if (rec === 'monthly') {
-        target = new Date(today.getFullYear(), today.getMonth(), orig.getDate(), origH, origMi);
-        if (target.getTime() < cmpTime)
-          target = new Date(today.getFullYear(), today.getMonth() + 1, orig.getDate(), origH, origMi);
-      } else if (rec === 'weekly') {
-        const origDay = orig.getDay();
-        target = new Date(today);
-        const todayDay = today.getDay();
-        let daysUntil = origDay - todayDay;
-        if (daysUntil < 0) daysUntil += 7;
-        if (daysUntil === 0) {
-          target.setDate(today.getDate());
-          target.setHours(origH, origMi, 0, 0);
-          if (target.getTime() < cmpTime) { daysUntil = 7; target.setDate(today.getDate() + daysUntil); }
-        } else {
-          target.setDate(today.getDate() + daysUntil);
-        }
-        target.setHours(origH, origMi, 0, 0);
-      } else if (rec === 'daily') {
-        target = new Date(today.getFullYear(), today.getMonth(), today.getDate(), origH, origMi);
-        if (target.getTime() < cmpTime)
-          target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1, origH, origMi);
-      }
+      if (rec) target = this._nextOccurrence(orig, rec, interval, today, cmpTime);
 
       let ye = today.getFullYear() - orig.getFullYear();
       const md = today.getMonth() - orig.getMonth();
@@ -634,17 +640,47 @@ class CountdownCard extends FormMixin(LitElement) {
     return out;
   }
 
+  // Next occurrence of `orig` repeating every `interval` units that is not
+  // before cmpTime. Occurrences are anchored to the original date, so
+  // "every 2 weeks" keeps the same week parity as the start date.
+  _nextOccurrence(orig, rec, interval, today, cmpTime) {
+    const y = orig.getFullYear(), m = orig.getMonth(), d = orig.getDate();
+    const h = orig.getHours(), mi = orig.getMinutes();
+    let at, elapsed;
+    if (rec === 'daily' || rec === 'weekly') {
+      const step = rec === 'weekly' ? 7 : 1;
+      // Calendar-day difference (DST-safe)
+      elapsed = Math.round((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+        - Date.UTC(y, m, d)) / MS_PER_DAY) / step;
+      at = (k) => new Date(y, m, d + k * step, h, mi);
+    } else {
+      // Months/years: clamp to the last day of short months (31st → 30th/28th)
+      const months = rec === 'monthly' ? 1 : 12;
+      elapsed = ((today.getFullYear() - y) * 12 + (today.getMonth() - m)) / months;
+      at = (k) => {
+        const first = new Date(y, m + k * months, 1);
+        const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+        return new Date(first.getFullYear(), first.getMonth(), Math.min(d, dim), h, mi);
+      };
+    }
+    // Start one period early so a same-period occurrence is never skipped
+    let n = (Math.floor(elapsed / interval) - 1) * interval;
+    let target = at(n);
+    while (target.getTime() < cmpTime) { n += interval; target = at(n); }
+    return target;
+  }
+
   // ── Progress bar ──────────────────────────────────────────────
   _progressPct(e) {
     if (e.isToday || e.isPast) return 0;
     const now = Date.now();
     const targetMs = e.targetDate.getTime();
-    const rec = e.recurring === true ? 'yearly' : (e.recurring || false);
+    const { rec, interval } = getRecurrence(e);
     let periodMs;
-    if (rec === 'daily') periodMs = MS_PER_DAY;
-    else if (rec === 'weekly') periodMs = MS_PER_DAY * 7;
-    else if (rec === 'monthly') periodMs = MS_PER_DAY * 30;
-    else if (rec === 'yearly') periodMs = MS_PER_DAY * 365;
+    if (rec === 'daily') periodMs = MS_PER_DAY * interval;
+    else if (rec === 'weekly') periodMs = MS_PER_DAY * 7 * interval;
+    else if (rec === 'monthly') periodMs = MS_PER_DAY * 30 * interval;
+    else if (rec === 'yearly') periodMs = MS_PER_DAY * 365 * interval;
     else periodMs = targetMs - e.originalDate.getTime();
     if (periodMs <= 0) return 0;
     const remaining = targetMs - now;
@@ -1187,6 +1223,7 @@ class CountdownCardEditor extends FormMixin(LitElement) {
       _formName: { state: true }, _formIcon: { state: true },
       _formColor: { state: true }, _formType: { state: true },
       _formRecurring: { state: true },
+      _formInterval: { state: true },
       _calY: { state: true }, _calM: { state: true }, _calD: { state: true }, _calView: { state: true },
       _emojiOpen: { state: true },
       _formHour: { state: true }, _formMinute: { state: true },
@@ -1373,7 +1410,7 @@ class CountdownCardEditor extends FormMixin(LitElement) {
               <div class="ei-dot" style="background:${ev.color || PRESET_COLORS[0]}"></div>
               <div class="einf">
                 <span class="en">${ev.name}</span>
-                <span class="edt">${ev.date}${ev.recurring ? ` · ${typeof ev.recurring === 'string' ? ev.recurring[0].toUpperCase() + ev.recurring.slice(1) : 'Yearly'}` : ''}${ev.type && ev.type !== 'event' ? ` · ${ev.type}` : ''}</span>
+                <span class="edt">${ev.date}${ev.recurring ? ` · ${recurrenceLabel(ev)}` : ''}${ev.type && ev.type !== 'event' ? ` · ${ev.type}` : ''}</span>
               </div>
               <div class="ea">
                 <button class="ib" aria-label="Move up" @click=${() => this._move(i, -1)} ?disabled=${i === 0}>▲</button>
